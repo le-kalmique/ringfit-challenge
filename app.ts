@@ -290,3 +290,44 @@ bot.command('updateusername', async (ctx: Context) => {
     return;
   }
 });
+
+bot.on('inline_query', async (ctx) => {
+  const userId = ctx.inlineQuery.from.id.toString();
+
+  // Fetch 5 latest entries from the database for the user
+  const entries = await UserEntry.find({ userId }).sort({ _id: -1 }).limit(5);
+
+  const withIcon = (kcal: number) =>
+    kcal < 100 ? '🎯' : kcal < 200 ? '💪' : kcal < 300 ? '🥇' : '🏆';
+
+  const results = entries.map((entry, index) => ({
+    type: 'article',
+    id: index.toString(),
+    title: `${withIcon(entry.kcal)} ${formatTime(
+      entry.hours * 3600 + entry.minutes * 60 + entry.seconds
+    )} - ${entry.kcal} ккал`,
+    description: `Відстань: ${entry.distance.toFixed(2)} км\nДата: ${entry._id
+      .getTimestamp()
+      .toLocaleDateString('uk-UA', {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+      })}
+    `,
+    input_message_content: {
+      message_text: `Тренування за ${entry._id
+        .getTimestamp()
+        .toLocaleDateString('uk-UA', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })}
+      \n${formatTime(
+        entry.hours * 3600 + entry.minutes * 60 + entry.seconds
+      )}\n${entry.kcal} ккал\nВідстань: ${entry.distance.toFixed(2)} км`,
+    },
+  }));
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ctx.answerInlineQuery(results as any);
+});
