@@ -141,7 +141,7 @@ bot.command('myresults', async (ctx: Context) => {
       Середній час: ${avgTimeFormatted}
 💪 Всього калорій: ${totalKcal}
       Середня кількість калорій: ${avgKcal}
-🏃 Загальна відстань: ${avgDistance.toFixed(2)} км
+🏃 Загальна відстань: ${totalDistance.toFixed(2)} км
       Середня відстань: ${avgDistance.toFixed(2)} км
       `
     );
