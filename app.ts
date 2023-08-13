@@ -186,18 +186,20 @@ bot.command('ratings', async (ctx: Context) => {
           avgTime: {
             $avg: {
               $sum: [
-                '$hours',
+                // Convert hours, minutes and seconds to seconds
+                { $multiply: ['$hours', 3600] },
                 { $multiply: ['$minutes', 60] },
-                { $multiply: ['$seconds', 3600] },
+                '$seconds',
               ],
             },
           },
-          avgKcal: { $avg: '$kcal' },
           username: { $first: '$username' },
         },
       },
       { $sort: { avgTime: -1 } },
     ]).exec();
+
+    console.log('ratingsByTime', ratingsByTime);
 
     const ratingByTimeText = ratingsByTime.map(
       (rating, index) =>
