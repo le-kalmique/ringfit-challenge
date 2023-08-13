@@ -48,14 +48,31 @@ bot.command('ringfit', async (ctx: Context) => {
 
   if (inputText) {
     const match = inputText.match(
-      /((\d+h)?\s?(\d+m)?\s?(\d+s)?),?\s?(\d+)\s?kcal,\s?([\d.]+)\s?km/
+      /((\d+h)?\s?(\d+m)?\s?(\d+s)?),?\s?(\d+)\s?(kcal|cal),?\s?([\d.]+)\s?(km|mi)/
     );
 
     if (match) {
-      const [_, time, hours, minutes, seconds, kcal, distance] = match;
+      const [
+        _,
+        time,
+        hours,
+        minutes,
+        seconds,
+        kcal,
+        _kcalUnit,
+        distance,
+        distanceUnit,
+      ] = match;
       const parsedHours = hours ? parseInt(hours) : 0;
       const parsedMinutes = minutes ? parseInt(minutes) : 0;
       const parsedSeconds = seconds ? parseInt(seconds) : 0;
+
+      const kcalValue = parseInt(kcal);
+      const distanceValue = parseFloat(distance);
+
+      // Convert distance to kilometers if in miles
+      const distanceInKm =
+        distanceUnit === 'mi' ? distanceValue * 1.60934 : distanceValue;
 
       const entry = new UserEntry({
         userId,
@@ -64,8 +81,8 @@ bot.command('ringfit', async (ctx: Context) => {
         hours: parsedHours,
         minutes: parsedMinutes,
         seconds: parsedSeconds,
-        kcal: parseInt(kcal),
-        distance: parseFloat(distance),
+        kcal: kcalValue,
+        distance: distanceInKm.toFixed(2),
       });
 
       try {
@@ -80,7 +97,7 @@ bot.command('ringfit', async (ctx: Context) => {
       }
     } else {
       await ctx.reply(
-        'Invalid entry format. Example: /ringfit 1h 26m 36s, 155 kcal, 2.5 km'
+        'Неправильний формат. Приклад: /ringfit 1h 26m 36s, 155 kcal, 2.5 km'
       );
     }
   }
@@ -88,9 +105,14 @@ bot.command('ringfit', async (ctx: Context) => {
 
 bot.command('myresults', async (ctx: Context) => {
   const userId = ctx.message?.from?.id.toString();
+  const chatId = ctx.message?.chat?.id.toString(); // Get chat ID
 
   try {
-    const userEntries = await UserEntry.find({ userId });
+    const userEntries = await UserEntry.find({ userId, chatId });
+    if (userEntries.length === 0) {
+      ctx.reply('Ти ще не додав жодного тренування!');
+      return;
+    }
     const totalTime = userEntries.reduce(
       (total, entry) =>
         total + entry.hours * 3600 + entry.minutes * 60 + entry.seconds,
@@ -122,7 +144,7 @@ bot.command('myresults', async (ctx: Context) => {
   }
 });
 
-bot.command('rating', async (ctx: Context) => {
+bot.command('ratings', async (ctx: Context) => {
   try {
     const chatId = ctx.message?.chat?.id.toString(); // Get chat ID
 
@@ -205,6 +227,11 @@ bot.command('rating', async (ctx: Context) => {
 
     const ratingsByKcalMessage =
       '💪 СЕРЕДНЯ КІЛЬКІСТЬ КАЛОРІЙ\n\n' + ratingByKcalText.join('\n');
+
+    if (ratings.length === 0) {
+      ctx.reply('Ніхто не додав жодного тренування! 😨');
+      return;
+    }
 
     ctx.reply(`Рейтинги:`);
     await ctx.reply(`${ratingMessage}`);
