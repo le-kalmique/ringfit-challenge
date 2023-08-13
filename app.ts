@@ -42,10 +42,6 @@ bot.command('ringfit', async (ctx: Context) => {
   const chatId = ctx.message?.chat?.id.toString(); // Get chat ID
   const username = getUsername(ctx.message?.from, userId);
 
-  if (username === 'ylysak') {
-    ctx.reply('/ban');
-  }
-
   if (inputText) {
     const match = inputText.match(
       /(?:(\d+h)?\s?(?:(\d+m)?\s?(?:(\d+s)?)?)?,?\s?(\d+(?:\.\d+)?)\s?(kcal|cal),?\s?([\d.]+)\s?(km|mi))/
