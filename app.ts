@@ -48,26 +48,26 @@ bot.command('ringfit', async (ctx: Context) => {
 
   if (inputText) {
     const match = inputText.match(
-      /((\d+h)?\s?(\d+m)?\s?(\d+s)?),?\s?(\d+)\s?(kcal|cal),?\s?([\d.]+)\s?(km|mi)/
+      /(?:(\d+h)?\s?(?:(\d+m)?\s?(?:(\d+s)?)?)?,?\s?(\d+(?:\.\d+)?)\s?(kcal|cal),?\s?([\d.]+)\s?(km|mi))/
     );
 
     if (match) {
       const [
         _,
-        time,
         hours,
         minutes,
         seconds,
         kcal,
-        _kcalUnit,
+        kcalUnit,
         distance,
         distanceUnit,
       ] = match;
+
       const parsedHours = hours ? parseInt(hours) : 0;
       const parsedMinutes = minutes ? parseInt(minutes) : 0;
       const parsedSeconds = seconds ? parseInt(seconds) : 0;
 
-      const kcalValue = parseInt(kcal);
+      const kcalValue = parseFloat(kcal);
       const distanceValue = parseFloat(distance);
 
       // Convert distance to kilometers if in miles
@@ -89,7 +89,7 @@ bot.command('ringfit', async (ctx: Context) => {
         const res = await entry.save();
         console.log('Entry saved successfully:', res);
         ctx.reply(
-          `Тренування додано! \n ${time}, ${entry.kcal} ккал, ${entry.distance} км`,
+          `Тренування додано! \n ${parsedHours}г ${parsedMinutes}хв ${parsedSeconds}с, ${entry.kcal} ккал, ${entry.distance} км`,
           { reply_to_message_id: replyMessageId }
         );
       } catch (err) {
@@ -122,12 +122,17 @@ bot.command('myresults', async (ctx: Context) => {
       (total, entry) => total + entry.kcal,
       0
     );
+    const totalDistance = userEntries.reduce(
+      (total, entry) => total + entry.distance,
+      0
+    );
 
     const avgTimeInSeconds = totalTime / userEntries.length;
     const avgTimeFormatted = formatTime(avgTimeInSeconds); // Implement this function
     const totalTimeFormatted = formatTime(totalTime);
-
+    const avgDistance = totalDistance / userEntries.length;
     const avgKcal = Math.round(totalKcal / userEntries.length);
+
     ctx.reply(
       `
 @${ctx.message?.from?.username}, твої результати
@@ -135,7 +140,10 @@ bot.command('myresults', async (ctx: Context) => {
 ⏳ Загальний час: ${totalTimeFormatted}
       Середній час: ${avgTimeFormatted}
 💪 Всього калорій: ${totalKcal}
-      Середня кількість калорій: ${avgKcal}`
+      Середня кількість калорій: ${avgKcal}
+🏃 Загальна відстань: ${avgDistance.toFixed(2)} км
+      Середня відстань: ${avgDistance.toFixed(2)} км
+      `
     );
   } catch (err) {
     ctx.reply('Error retrieving entries:', err);
@@ -151,7 +159,7 @@ bot.command('ratings', async (ctx: Context) => {
     const withMedal = (rating: number) =>
       rating === 0 ? '🥇' : rating === 1 ? '🥈' : rating === 2 ? '🥉' : '';
 
-    // ratings by total
+    // RATINGS BY TOTAL TRAININGS
     const ratings = await UserEntry.aggregate([
       { $match: { chatId: chatId } }, // Consider entries from the same chat
       {
@@ -166,14 +174,14 @@ bot.command('ratings', async (ctx: Context) => {
 
     const ratingText = ratings.map(
       (rating, index) =>
-        `${withMedal(index)} ${index + 1}. ${rating.username}\n\tКількість: ${
+        `${withMedal(index)} ${index + 1}. ${rating.username} - ${
           rating.totalTrainings
         }\n`
     );
 
     const ratingMessage = '🏆 КІЛЬКІСТЬ ТРЕНУВАНЬ\n\n' + ratingText.join('\n');
 
-    // ratings by avg time
+    // RATINGS BY AVG TIME
     const ratingsByTime = await UserEntry.aggregate([
       { $match: { chatId: chatId } }, // Consider entries from the same chat
       {
@@ -197,7 +205,7 @@ bot.command('ratings', async (ctx: Context) => {
 
     const ratingByTimeText = ratingsByTime.map(
       (rating, index) =>
-        `${withMedal(index)} ${index + 1}. ${rating.username}\n\t\t${formatTime(
+        `${withMedal(index)} ${index + 1}. ${rating.username} - ${formatTime(
           rating.avgTime
         )}\n`
     );
@@ -205,7 +213,7 @@ bot.command('ratings', async (ctx: Context) => {
     const ratingByTimeMessage =
       '⏳ СЕРЕДНІЙ ЧАС\n\n' + ratingByTimeText.join('\n');
 
-    // ratings by avg kcal
+    // RATINGS BY AVG KCAL
     const ratingsByKcal = await UserEntry.aggregate([
       { $match: { chatId: chatId } }, // Consider entries from the same chat
       {
@@ -222,11 +230,34 @@ bot.command('ratings', async (ctx: Context) => {
       (rating, index) =>
         `${withMedal(index)} ${index + 1}. ${
           rating.username
-        }\n\t${rating.avgKcal.toFixed(2)}\n`
+        } - ${rating.avgKcal.toFixed(2)}\n`
     );
 
     const ratingsByKcalMessage =
       '💪 СЕРЕДНЯ КІЛЬКІСТЬ КАЛОРІЙ\n\n' + ratingByKcalText.join('\n');
+
+    // RATINGS BY TOTAL DISTANCE
+    const ratingsByDistance = await UserEntry.aggregate([
+      { $match: { chatId } }, // Consider entries from the same chat
+      {
+        $group: {
+          _id: '$userId',
+          totalDistance: { $sum: '$distance' },
+          username: { $first: '$username' },
+        },
+      },
+      { $sort: { totalDistance: -1 } },
+    ]).exec();
+
+    const ratingByDistanceText = ratingsByDistance.map(
+      (rating, index) =>
+        `${withMedal(index)} ${index + 1}. ${
+          rating.username
+        } - ${rating.totalDistance.toFixed(2)} км\n`
+    );
+
+    const ratingByDistanceMessage =
+      '🏃 ЗАГАЛЬНА ВІДСТАНЬ\n\n' + ratingByDistanceText.join('\n');
 
     if (ratings.length === 0) {
       ctx.reply('Ніхто не додав жодного тренування! 😨');
@@ -237,6 +268,7 @@ bot.command('ratings', async (ctx: Context) => {
     await ctx.reply(`${ratingMessage}`);
     await ctx.reply(`${ratingByTimeMessage}`);
     await ctx.reply(`${ratingsByKcalMessage}`);
+    await ctx.reply(`${ratingByDistanceMessage}`);
   } catch (err) {
     ctx.reply('Error calculating ratings.');
     console.error('Error calculating ratings:', err);
