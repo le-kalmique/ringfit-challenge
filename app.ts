@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 import { Telegraf, Context } from 'telegraf';
 import { UserEntry } from './models/Entry.js';
 import { formatTime, getUsername } from './utils.js';
+import dotenv from 'dotenv';
+
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config();
+}
 
 interface UserEntry {
   hours: number;
@@ -12,12 +17,12 @@ interface UserEntry {
 }
 
 mongoose.connect(
-  'mongodb+srv://bot:s2jZjusORSefqUzC@main.us253pi.mongodb.net/',
+  `mongodb+srv://bot:${process.env.MONGO_PASSWORD}@main.us253pi.mongodb.net/`,
   {}
 );
 
 const db = mongoose.connection;
-const bot = new Telegraf('6442582463:AAHz1pHvovvPjIBpqR6s0N-JdZc6z3ll7xU');
+const bot = new Telegraf(process.env.BOT_TOKEN);
 
 db.on('error', console.error.bind(console, 'MongoDB connection error:'));
 db.once('open', () => {

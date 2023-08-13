@@ -19,6 +19,7 @@
     "typescript": "^5.1.6"
   },
   "dependencies": {
+    "dotenv": "^16.3.1",
     "mongoose": "^7.4.3",
     "telegraf": "^4.12.2",
     "telegraph": "^0.8.22",
