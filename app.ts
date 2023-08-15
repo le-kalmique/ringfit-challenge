@@ -135,8 +135,8 @@ bot.command('myresults', async (ctx: Context) => {
 🎯 Всього занять: ${userEntries.length}\n
 ⏳ Загальний час: ${totalTimeFormatted}
       Середній час: ${avgTimeFormatted}
-💪 Всього калорій: ${totalKcal}
-      Середня кількість калорій: ${avgKcal}
+💪 Всього калорій: ${totalKcal.toFixed(2)}
+      Середня кількість калорій: ${avgKcal.toFixed(2)}
 🏃 Загальна відстань: ${totalDistance.toFixed(2)} км
       Середня відстань: ${avgDistance.toFixed(2)} км
       `
@@ -287,6 +287,26 @@ bot.command('updateusername', async (ctx: Context) => {
   } catch (err) {
     console.error('Error updating username:', err);
     ctx.reply('Error updating username:', err);
+    return;
+  }
+});
+
+bot.command('removelatest', async (ctx: Context) => {
+  const userId = ctx.message?.from?.id.toString();
+  const chatId = ctx.message?.chat?.id.toString(); // Get chat ID
+
+  try {
+    const entry = await UserEntry.findOneAndDelete({ userId, chatId }).sort({
+      _id: -1,
+    });
+    if (entry) {
+      ctx.reply('Останнє тренування видалено!');
+    } else {
+      ctx.reply('Ти ще не додав жодного тренування!');
+    }
+  } catch (err) {
+    console.error('Error deleting entry:', err);
+    ctx.reply('Error deleting entry:', err);
     return;
   }
 });
