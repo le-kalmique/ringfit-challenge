@@ -13,7 +13,7 @@ export const getTrainingData = async (base64Image: string) => {
 
     const timePattern =
       /(([\d|O]+) ?hr\.? ?)?(([\d|O]+) ?min\.? ?)?(([\d|O]+) ?sec\.?)?/i;
-    const caloriesPattern = /^(\d+(\. ?\d+)?)\s*(Cal|cal)$/i;
+    const caloriesPattern = /^(\d+(\. ?\d+)?)\s*(Cal|cal|kcal)$/i;
     const distancePattern = /(\d+(\. ?\d+)?)\s*(?:mi[^n]\.?|km\.?)/;
 
     const timeEntry = trainingData.find((entry) => entry.text.includes('sec'));
@@ -26,9 +26,9 @@ export const getTrainingData = async (base64Image: string) => {
 
     console.log(
       'Text entries:',
-      timeEntry.text,
-      caloriesEntry.text,
-      distanceEntry.text
+      timeEntry?.text,
+      caloriesEntry?.text,
+      distanceEntry?.text
     );
 
     const fixedText = timeEntry.text.replace(/O/g, '0');
