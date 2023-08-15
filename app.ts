@@ -25,6 +25,7 @@ mongoose.connect(
   `mongodb+srv://bot:${process.env.MONGO_PASSWORD}@main.us253pi.mongodb.net/`,
   {}
 );
+AWS.config.update({ region: 'us-east-1' });
 
 const db = mongoose.connection;
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -414,5 +415,4 @@ bot.launch().then(() => {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   });
-  AWS.config.update({ region: 'us-east-1' });
 });
