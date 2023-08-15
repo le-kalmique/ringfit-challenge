@@ -7,7 +7,6 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon app.ts"
   },
-  "type": "module",
   "author": "",
   "license": "ISC",
   "devDependencies": {
@@ -16,13 +15,16 @@
     "eslint": "^8.46.0"
   },
   "dependencies": {
-    "typescript": "^5.1.6",
+    "@aws-sdk/client-rekognition": "^3.391.0",
+    "aws-sdk": "^2.1436.0",
+    "axios": "^1.4.0",
     "dotenv": "^16.3.1",
     "mongoose": "^7.4.3",
     "nodemon": "^3.0.1",
     "telegraf": "^4.12.2",
     "telegraph": "^0.8.22",
     "tesseract.js": "^4.1.1",
-    "ts-node": "^10.9.1"
+    "ts-node": "^10.9.1",
+    "typescript": "^5.1.6"
   }
 }

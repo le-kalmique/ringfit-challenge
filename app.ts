@@ -1,19 +1,23 @@
+import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { Telegraf, Context } from 'telegraf';
-import { UserEntry } from './models/Entry.js';
-import { formatTime, getUsername } from './utils.js';
-import dotenv from 'dotenv';
+import { Message, Update } from 'telegraf/typings/core/types/typegram.js';
+
+import { UserEntry } from './models';
+import { getImage } from './requests';
+import { formatTime, getUsername, getTrainingData } from './utils';
 
 if (process.env.NODE_ENV !== 'production') {
   dotenv.config();
 }
 
-interface UserEntry {
+export interface UserEntry {
   hours: number;
   minutes: number;
   seconds: number;
   kcal: number;
   distance: number;
+  distanceUnit?: string;
 }
 
 mongoose.connect(
@@ -353,3 +357,54 @@ bot.on('inline_query', async (ctx) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ctx.answerInlineQuery(results as any);
 });
+
+bot.on(
+  'photo',
+  async (ctx: Context<Update.MessageUpdate<Message.PhotoMessage>>) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const caption: string = ctx.message?.caption;
+    const containsMentionOrCommand =
+      caption?.includes('@ringfit_together_bot') ||
+      caption?.includes('/ringfit');
+    const bestResolutionPhoto = ctx.message?.photo?.slice(-1)[0];
+
+    if (!containsMentionOrCommand || !bestResolutionPhoto) return;
+
+    const userId = ctx.message?.from?.id.toString();
+    const chatId = ctx.message?.chat?.id.toString();
+    const replyMessageId = ctx.message?.message_id;
+    const username = getUsername(ctx.message?.from, userId);
+
+    const photoLink = await bot.telegram.getFileLink(
+      bestResolutionPhoto.file_id
+    );
+
+    // Get photo base64
+    const photoBase64 = await getImage(photoLink.href);
+    console.log('ctx.message', ctx.message);
+
+    try {
+      // Get text reko
+      const trainingData = await getTrainingData(photoBase64);
+
+      const entry = new UserEntry({
+        userId,
+        chatId,
+        username,
+        ...trainingData,
+      });
+
+      const res = await entry.save();
+      console.log('Entry saved successfully:', res);
+      ctx.reply(
+        `Тренування додано! \n ${entry.hours}г ${entry.minutes}хв ${
+          entry.seconds
+        }с, ${entry.kcal} ккал, ${entry.distance.toFixed(2)} км`,
+        { reply_to_message_id: replyMessageId }
+      );
+    } catch (err) {
+      console.log('Error saving entry:', err);
+      ctx.reply('Error saving entry:', err.message);
+    }
+  }
+);
