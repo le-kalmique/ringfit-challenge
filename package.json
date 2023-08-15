@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start:dev": "nodemon app.ts",
-    "start": "tsc && node dist/app.js --max_old_space_size=256"
+    "start": "tsc && node dist/app.js --max_old_space_size=2048"
   },
   "author": "",
   "license": "ISC",
