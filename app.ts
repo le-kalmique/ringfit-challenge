@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { Telegraf, Context } from 'telegraf';
-import { Message, Update } from 'telegraf/typings/core/types/typegram.js';
+import { Message } from 'telegraf/typings/core/types/typegram.js';
 
 import { UserEntry } from './models';
 import { getImage } from './requests';
@@ -358,22 +358,23 @@ bot.on('inline_query', async (ctx) => {
   ctx.answerInlineQuery(results as any);
 });
 
-bot.on(
-  'photo',
-  async (ctx: Context<Update.MessageUpdate<Message.PhotoMessage>>) => {
+bot.on('message', async (ctx: Context) => {
+  const message = ctx.message as Message.PhotoMessage;
+  if (message?.photo && message?.caption) {
+    ctx.reply('Фото отримано!');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const caption: string = ctx.message?.caption;
+    const caption: string = message?.caption;
     const containsMentionOrCommand =
       caption?.includes('@ringfit_together_bot') ||
       caption?.includes('/ringfit');
-    const bestResolutionPhoto = ctx.message?.photo?.slice(-1)[0];
+    const bestResolutionPhoto = message?.photo?.slice(-1)[0];
 
     if (!containsMentionOrCommand || !bestResolutionPhoto) return;
 
-    const userId = ctx.message?.from?.id.toString();
-    const chatId = ctx.message?.chat?.id.toString();
-    const replyMessageId = ctx.message?.message_id;
-    const username = getUsername(ctx.message?.from, userId);
+    const userId = message?.from?.id.toString();
+    const chatId = message?.chat?.id.toString();
+    const replyMessageId = message?.message_id;
+    const username = getUsername(message?.from, userId);
 
     const photoLink = await bot.telegram.getFileLink(
       bestResolutionPhoto.file_id
@@ -407,4 +408,4 @@ bot.on(
       ctx.reply('Error saving entry:', err.message);
     }
   }
-);
+});
