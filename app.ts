@@ -1,12 +1,12 @@
 import dotenv from 'dotenv';
+import AWS from 'aws-sdk';
 import mongoose from 'mongoose';
 import { Telegraf, Context } from 'telegraf';
 import { Message } from 'telegraf/typings/core/types/typegram.js';
-import AWS from 'aws-sdk';
 
 import { UserEntry } from './models';
 import { getImage } from './requests';
-import { formatTime, getUsername, getTrainingData } from './utils';
+import { formatTime, getUsername } from './utils';
 
 if (process.env.NODE_ENV !== 'production') {
   dotenv.config();
@@ -354,57 +354,57 @@ bot.on('inline_query', async (ctx) => {
   ctx.answerInlineQuery(results as any);
 });
 
-bot.on('message', async (ctx: Context) => {
-  const message = ctx.message as Message.PhotoMessage;
-  if (message?.photo && message?.caption) {
-    ctx.reply('Фото отримано!');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const caption: string = message?.caption;
-    const containsMentionOrCommand =
-      caption?.includes('@ringfit_together_bot') ||
-      caption?.includes('/ringfit');
-    const bestResolutionPhoto = message?.photo?.slice(-1)[0];
+// bot.on('message', async (ctx: Context) => {
+//   const message = ctx.message as Message.PhotoMessage;
+//   if (message?.photo && message?.caption) {
+//     ctx.reply('Фото отримано!');
+//     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+//     const caption: string = message?.caption;
+//     const containsMentionOrCommand =
+//       caption?.includes('@ringfit_together_bot') ||
+//       caption?.includes('/ringfit');
+//     const bestResolutionPhoto = message?.photo?.slice(-1)[0];
 
-    if (!containsMentionOrCommand || !bestResolutionPhoto) return;
+//     if (!containsMentionOrCommand || !bestResolutionPhoto) return;
 
-    const userId = message?.from?.id.toString();
-    const chatId = message?.chat?.id.toString();
-    const replyMessageId = message?.message_id;
-    const username = getUsername(message?.from, userId);
+//     const userId = message?.from?.id.toString();
+//     const chatId = message?.chat?.id.toString();
+//     const replyMessageId = message?.message_id;
+//     const username = getUsername(message?.from, userId);
 
-    const photoLink = await bot.telegram.getFileLink(
-      bestResolutionPhoto.file_id
-    );
+//     const photoLink = await bot.telegram.getFileLink(
+//       bestResolutionPhoto.file_id
+//     );
 
-    // Get photo base64
-    const photoBase64 = await getImage(photoLink.href);
-    console.log('ctx.message', ctx.message);
+//     // Get photo base64
+//     const photoBase64 = await getImage(photoLink.href);
+//     console.log('ctx.message', ctx.message);
 
-    try {
-      // Get text reko
-      const trainingData = await getTrainingData(photoBase64);
+//     try {
+//       // Get text reko
+//       const trainingData = await getTrainingData(photoBase64);
 
-      const entry = new UserEntry({
-        userId,
-        chatId,
-        username,
-        ...trainingData,
-      });
+//       const entry = new UserEntry({
+//         userId,
+//         chatId,
+//         username,
+//         ...trainingData,
+//       });
 
-      const res = await entry.save();
-      console.log('Entry saved successfully:', res);
-      ctx.reply(
-        `Тренування додано! \n ${entry.hours}г ${entry.minutes}хв ${
-          entry.seconds
-        }с, ${entry.kcal} ккал, ${entry.distance.toFixed(2)} км`,
-        { reply_to_message_id: replyMessageId }
-      );
-    } catch (err) {
-      console.log('Error saving entry:', err);
-      ctx.reply('Error saving entry:', err.message);
-    }
-  }
-});
+//       const res = await entry.save();
+//       console.log('Entry saved successfully:', res);
+//       ctx.reply(
+//         `Тренування додано! \n ${entry.hours}г ${entry.minutes}хв ${
+//           entry.seconds
+//         }с, ${entry.kcal} ккал, ${entry.distance.toFixed(2)} км`,
+//         { reply_to_message_id: replyMessageId }
+//       );
+//     } catch (err) {
+//       console.log('Error saving entry:', err);
+//       ctx.reply('Error saving entry:', err.message);
+//     }
+//   }
+// });
 
 // Start the bot
 bot.launch().then(() => {
