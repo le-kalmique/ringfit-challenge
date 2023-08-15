@@ -81,11 +81,13 @@ bot.command('ringfit', async (ctx: Context) => {
         distance: distanceInKm.toFixed(2),
       });
 
+      const additional = distanceUnit === 'mi' ? ', клятий імперець' : '';
+
       try {
         const res = await entry.save();
         console.log('Entry saved successfully:', res);
         ctx.reply(
-          `Тренування додано! \n ${parsedHours}г ${parsedMinutes}хв ${parsedSeconds}с, ${entry.kcal} ккал, ${entry.distance} км`,
+          `Тренування додано${additional}! \n ${parsedHours}г ${parsedMinutes}хв ${parsedSeconds}с, ${entry.kcal} ккал, ${entry.distance} км`,
           { reply_to_message_id: replyMessageId }
         );
       } catch (err) {
