@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { Telegraf, Context } from 'telegraf';
 import { Message } from 'telegraf/typings/core/types/typegram.js';
+import AWS from 'aws-sdk';
 
 import { UserEntry } from './models';
 import { getImage } from './requests';
@@ -31,11 +32,6 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 db.on('error', console.error.bind(console, 'MongoDB connection error:'));
 db.once('open', () => {
   console.log('Connected to MongoDB');
-});
-
-// Start the bot
-bot.launch().then(() => {
-  console.log('Bot is running...');
 });
 
 bot.command('ringfit', async (ctx: Context) => {
@@ -408,4 +404,15 @@ bot.on('message', async (ctx: Context) => {
       ctx.reply('Error saving entry:', err.message);
     }
   }
+});
+
+// Start the bot
+bot.launch().then(() => {
+  console.log('Bot is running...');
+
+  const _config = new AWS.Config({
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  });
+  AWS.config.update({ region: 'us-east-1' });
 });
