@@ -230,7 +230,7 @@ const getRatings = async (chatId: string, top?: number) => {
   };
 };
 
-bot.command('fullRatings', async (ctx: Context) => {
+bot.command('fullratings', async (ctx: Context) => {
   try {
     const chatId = ctx.message?.chat?.id.toString(); // Get chat ID
 
