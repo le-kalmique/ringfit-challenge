@@ -6,7 +6,12 @@ import { Message } from 'telegraf/typings/core/types/typegram.js';
 
 import { UserEntry } from './models';
 import { getImage } from './requests';
-import { formatTime, getTrainingData, getUsername } from './utils';
+import {
+  formatTime,
+  formatTimeShort,
+  getTrainingData,
+  getUsername,
+} from './utils';
 
 if (process.env.NODE_ENV !== 'production') {
   dotenv.config();
@@ -151,110 +156,125 @@ bot.command('myresults', async (ctx: Context) => {
   }
 });
 
-bot.command('ratings', async (ctx: Context) => {
+const getRatings = async (chatId: string, top?: number) => {
+  // RATINGS BY TOTAL TRAININGS
+  const ratings = await UserEntry.aggregate([
+    { $match: { chatId } }, // Consider entries from the same chat
+    {
+      $group: {
+        _id: '$userId',
+        totalTrainings: { $sum: 1 },
+        username: { $first: '$username' },
+      },
+    },
+    { $sort: { totalTrainings: -1 } },
+    { $limit: top || 30 },
+  ]).exec();
+
+  // RATINGS BY AVG TIME
+  const ratingsByTime = await UserEntry.aggregate([
+    { $match: { chatId } }, // Consider entries from the same chat
+    {
+      $group: {
+        _id: '$userId',
+        avgTime: {
+          $avg: {
+            $sum: [
+              // Convert hours, minutes and seconds to seconds
+              { $multiply: ['$hours', 3600] },
+              { $multiply: ['$minutes', 60] },
+              '$seconds',
+            ],
+          },
+        },
+        username: { $first: '$username' },
+      },
+    },
+    { $sort: { avgTime: -1 } },
+    { $limit: top || 30 },
+  ]).exec();
+
+  // RATINGS BY AVG KCAL
+  const ratingsByKcal = await UserEntry.aggregate([
+    { $match: { chatId } }, // Consider entries from the same chat
+    {
+      $group: {
+        _id: '$userId',
+        avgKcal: { $avg: '$kcal' },
+        username: { $first: '$username' },
+      },
+    },
+    { $sort: { avgKcal: -1 } },
+    { $limit: top || 30 },
+  ]).exec();
+
+  // RATINGS BY TOTAL DISTANCE
+  const ratingsByDistance = await UserEntry.aggregate([
+    { $match: { chatId } }, // Consider entries from the same chat
+    {
+      $group: {
+        _id: '$userId',
+        totalDistance: { $sum: '$distance' },
+        username: { $first: '$username' },
+      },
+    },
+    { $sort: { totalDistance: -1 } },
+    { $limit: top || 30 },
+  ]).exec();
+
+  return {
+    ratings,
+    ratingsByTime,
+    ratingsByKcal,
+    ratingsByDistance,
+  };
+};
+
+bot.command('fullRatings', async (ctx: Context) => {
   try {
     const chatId = ctx.message?.chat?.id.toString(); // Get chat ID
 
     const withMedal = (rating: number) =>
       rating === 0 ? '🥇' : rating === 1 ? '🥈' : rating === 2 ? '🥉' : '';
+    const withLineBreak = (rating: number) => (rating < 3 ? '\n' : '');
 
-    // RATINGS BY TOTAL TRAININGS
-    const ratings = await UserEntry.aggregate([
-      { $match: { chatId: chatId } }, // Consider entries from the same chat
-      {
-        $group: {
-          _id: '$userId',
-          totalTrainings: { $sum: 1 },
-          username: { $first: '$username' },
-        },
-      },
-      { $sort: { totalTrainings: -1 } },
-    ]).exec();
+    const { ratings, ratingsByTime, ratingsByDistance, ratingsByKcal } =
+      await getRatings(chatId);
 
     const ratingText = ratings.map(
       (rating, index) =>
         `${withMedal(index)} ${index + 1}. ${rating.username} - ${
           rating.totalTrainings
-        }\n`
+        }${withLineBreak(index)}`
     );
 
     const ratingMessage = '🏆 КІЛЬКІСТЬ ТРЕНУВАНЬ\n\n' + ratingText.join('\n');
-
-    // RATINGS BY AVG TIME
-    const ratingsByTime = await UserEntry.aggregate([
-      { $match: { chatId: chatId } }, // Consider entries from the same chat
-      {
-        $group: {
-          _id: '$userId',
-          avgTime: {
-            $avg: {
-              $sum: [
-                // Convert hours, minutes and seconds to seconds
-                { $multiply: ['$hours', 3600] },
-                { $multiply: ['$minutes', 60] },
-                '$seconds',
-              ],
-            },
-          },
-          username: { $first: '$username' },
-        },
-      },
-      { $sort: { avgTime: -1 } },
-    ]).exec();
-
-    console.log('ratingsByTime', ratingsByTime);
 
     const ratingByTimeText = ratingsByTime.map(
       (rating, index) =>
         `${withMedal(index)} ${index + 1}. ${rating.username} - ${formatTime(
           rating.avgTime
-        )}\n`
+        )}${withLineBreak(index)}`
     );
 
     const ratingByTimeMessage =
       '⏳ СЕРЕДНІЙ ЧАС\n\n' + ratingByTimeText.join('\n');
 
-    // RATINGS BY AVG KCAL
-    const ratingsByKcal = await UserEntry.aggregate([
-      { $match: { chatId: chatId } }, // Consider entries from the same chat
-      {
-        $group: {
-          _id: '$userId',
-          avgKcal: { $avg: '$kcal' },
-          username: { $first: '$username' },
-        },
-      },
-      { $sort: { avgKcal: -1 } },
-    ]).exec();
-
     const ratingByKcalText = ratingsByKcal.map(
       (rating, index) =>
         `${withMedal(index)} ${index + 1}. ${
           rating.username
-        } - ${rating.avgKcal.toFixed(2)}\n`
+        } - ${rating.avgKcal.toFixed(2)} ккал${withLineBreak(index)}`
     );
 
     const ratingsByKcalMessage =
       '💪 СЕРЕДНЯ КІЛЬКІСТЬ КАЛОРІЙ\n\n' + ratingByKcalText.join('\n');
 
-    // RATINGS BY TOTAL DISTANCE
-    const ratingsByDistance = await UserEntry.aggregate([
-      { $match: { chatId } }, // Consider entries from the same chat
-      {
-        $group: {
-          _id: '$userId',
-          totalDistance: { $sum: '$distance' },
-          username: { $first: '$username' },
-        },
-      },
-      { $sort: { totalDistance: -1 } },
-    ]).exec();
-
     const ratingByDistanceText = ratingsByDistance.map(
       (rating, index) =>
         `${withMedal(index)} ${index + 1}. ${
           rating.username
-        } - ${rating.totalDistance.toFixed(2)} км\n`
+        } - ${rating.totalDistance.toFixed(2)} км${withLineBreak(index)}`
     );
 
     const ratingByDistanceMessage =
@@ -272,6 +292,61 @@ bot.command('ratings', async (ctx: Context) => {
     await ctx.reply(`${ratingByDistanceMessage}`);
   } catch (err) {
     ctx.reply('Error calculating ratings.');
+    console.error('Error calculating ratings:', err);
+    return;
+  }
+});
+
+bot.command('ratings', async (ctx: Context) => {
+  try {
+    const chatId = ctx.message?.chat?.id.toString(); // Get chat ID
+
+    const withMedal = (rating: number) =>
+      rating === 0 ? '🥇' : rating === 1 ? '🥈' : rating === 2 ? '🥉' : '';
+
+    const { ratings, ratingsByTime, ratingsByDistance, ratingsByKcal } =
+      await getRatings(chatId, 5);
+
+    const ratingText = ratings.map(
+      (rating, index) =>
+        `${index + 1}. ${rating.username} - ${
+          rating.totalTrainings
+        } ${withMedal(index)}`
+    );
+    const timeRatingText = ratingsByTime.map(
+      (rating, index) =>
+        `${index + 1}. ${rating.username} - ${formatTimeShort(
+          rating.avgTime
+        )} ${withMedal(index)}`
+    );
+    const distanceRatingText = ratingsByDistance.map(
+      (rating, index) =>
+        `${index + 1}. ${rating.username} - ${rating.totalDistance.toFixed(
+          2
+        )} км ${withMedal(index)}`
+    );
+    const kcalRatingText = ratingsByKcal.map(
+      (rating, index) =>
+        `${index + 1}. ${rating.username} - ${rating.avgKcal.toFixed(
+          2
+        )} ккал ${withMedal(index)}`
+    );
+
+    let ratingMessage = '🏆 КІЛЬКІСТЬ ТРЕНУВАНЬ\n' + ratingText.join('\n');
+    ratingMessage +=
+      '\n\n🏃 ЗАГАЛЬНА ВІДСТАНЬ\n' + distanceRatingText.join('\n');
+    ratingMessage += '\n\n⏳ СЕРЕДНІЙ ЧАС\n' + timeRatingText.join('\n');
+    ratingMessage +=
+      '\n\n💪 СЕРЕДНЯ КІЛЬКІСТЬ КАЛОРІЙ\n' + kcalRatingText.join('\n');
+
+    if (ratings.length === 0) {
+      ctx.reply('Ніхто не додав жодного тренування! 😨');
+      return;
+    }
+
+    await ctx.reply(`${ratingMessage}`);
+  } catch (err) {
+    ctx.reply('Помилка при обрахунку рейтингу.');
     console.error('Error calculating ratings:', err);
     return;
   }
